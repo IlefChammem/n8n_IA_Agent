@@ -1,0 +1,1971 @@
+{
+  "name": "Workflow Agent IA",
+  "nodes": [
+    {
+      "parameters": {
+        "trigger": [
+          "any_event",
+          "message"
+        ],
+        "channelId": {
+          "__rl": true,
+          "value": "C08HDJGCSMQ",
+          "mode": "list",
+          "cachedResultName": "tous-devops2025"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.slackTrigger",
+      "typeVersion": 1,
+      "position": [
+        -3380,
+        -460
+      ],
+      "id": "fd705edd-d399-4cea-b369-acc92f0afa41",
+      "name": "Slack Trigger",
+      "webhookId": "5ca8e090-3768-4841-957f-13e49f81dce9",
+      "credentials": {
+        "slackApi": {
+          "id": "VzuU0VDsCV7F3f2Z",
+          "name": "Slack account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}",
+        "options": {
+          "systemMessage": "=Tu es un agent IA DevOps. Tu comprends des commandes envoyées par des utilisateurs via Slack.\n\nTa mission est d'automatiser des tâches DevOps. Tu dois lire les messages et détecter leur intention parmi ces 4 catégories :\n\n1. Créer une branche Git .\n2. Lancer un pipeline CI/CD\n3. Créer une merge request entre deux branches.\n4. Rapporter les erreurs d'un pipeline.\n\n### 📌 Cas 1 : si le message est créer une branche Git\n- Extrais le nom de repo git\n- Extrait le nom de la branche principale\n- Extrais `\"task_id\"` (ex: TEST-123)\n- Extrais `\"description\"` (ex: \"Add login page\"), elle peut être introduite par \"**Description :**\" ou mentionnée librement.\n- Génére `\"branch_name\"` à partir de `\"description\"` convertie en kebab-case, préfixée par `feature/`.\n  - Exemple : `\"description\": \"Add login page\"` → `\"branch_name\": \"feature/add-login-page\"`\n\nExemples de messages et extractions correctes :\n- \"Créer une branche pour CPG-8\" → task_id: \"CPG-8\"\n- \"Nouvelle branche à partir du ticket PROJ-123\" → task_id: \"PROJ-123\" \n- \"Je vais travailler sur ABC-456\" → task_id: \"ABC-456\"\n- \"Commencer le développement de TASK-789\" → task_id: \"TASK-789\"\n\n### 📌 Cas 2 : si le message est créer une merge request\nINSTRUCTIONS STRICTES :\n1. Lis le message utilisateur\n2. Extrait le repository url\n3. Trouve les 2 noms de branches mentionnés exactement comme écrit\n4. Extrait l'email de superviseur\n5. N'invente AUCUN nom de branche\n\nExemples :\n- \"Merger feature/login vers develop\" → source: \"feature/login\", target: \"develop\"\n- \"Pull request de bugfix/auth to main\" → source: \"bugfix/auth\", target: \"main\"\n- \"mail\": xxxxx@xxxxx.xxx\n⚠️ Si aucun task_id n'est trouvé dans le message, réponds avec \"error\": \"Task ID manquant\"\n\n### 📌 Cas 3 : si le message est lancer un pipeline\n!!!! c'est sSTRICTEMENT NECESSAIRE d'extraire ces champs:\n- Extraire `\"pipeline_type\"` du message\n- Extraire `\"repo_url\"` du message \n- Extraire `\"branch_name\"` du message\n- `\"description\"` peut contenir des précisions comme \"déploiement staging\", etc.\n\n\n### 📌 Cas 4 : si le message est rapporter les erreurs\n- Extrais \"nom de job\"\n\n## 🔁 RÈGLES DE SORTIE ABSOLUES\n\nTu dois TOUJOURS répondre uniquement avec un bloc JSON contenant ces champs selon l'intention :\n\n**Pour créer une branche :**\n```json\n{\n  \"intention\": \"create_branch\",\n  \"repo\": \"\",\n   \"main_branch\": \"\",\n  \"branch_name\": \"\",\n  \"description\": \"\",\n  \"task_id\": \"\",\n\n}\n```\n\n**Pour lancer un pipeline :**\n```json\n{\n  \"intention\": \"run_pipeline\", \n  \"pipeline_type\": \"build|test|deploy|full\",\n   \"repo_url\": \"le nom de repo git\"\n  \"branch_name\": \"nom_branche\",\n  \"description\": \"détails_si_précisés\"\n}\n```\n\n**Pour créer une merge request :**\n```json\n{\n  \"intention\": \"create_merge_request\",\n  \"repo_url\": \"\"\n  \"source_branch\": \"branche_source_exacte\",\n  \"target_branch\": \"branche_cible_exacte\",\n  \"mail\": \"xxxxx@xxxxx.xxx\"\n}\n```\n\n**Pour rapporter des erreurs :**\n```json\n{\n  \"intention\": \"report_pipeline_error\",\n  \"job_name\" : \"\"\n}\n```\n\n**En cas d'erreur (task_id manquant, etc.) :**\n```json\n{\n  \"intention\": \"error\",\n  \"error\": \"Description de l'erreur\"\n}\n```\n\n❗️ RÈGLES CRITIQUES :\n- N'invente JAMAIS de données\n- Extrais SEULEMENT ce qui est écrit dans le message\n- Si une information manque, utilise null ou indique l'erreur\n- Réponds UNIQUEMENT en JSON, aucun autre texte\n- Respecte exactement la casse et l'orthographe des task_id et branch_name\n\n❗️ EXEMPLES DE MAUVAISES RÉPONSES À ÉVITER :\n- Inventer \"PROJ-123\" quand le message dit \"CPG-8\"  \n- Générer \"feature/new-feature\" quand aucune branche n'est mentionnée\n- Ajouter du texte avant ou après le JSON"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -2680,
+        -440
+      ],
+      "id": "57cd4d25-97cf-4862-b681-141b3a6b4851",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "cognitivecomputations/dolphin3.0-mistral-24b:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -2720,
+        -160
+      ],
+      "id": "37074ee8-e933-479c-b8f2-2e89cee0fcb9",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "XlDp9Zzj45mTPwL9",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action_type }}",
+                    "rightValue": "create_branch",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "d8ce6df8-ef56-4ad5-9b60-c1cd7205dc7a"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "a1fd2fdd-5358-4df5-918c-301d78910104",
+                    "leftValue": "={{ $json.action_type }}",
+                    "rightValue": "create_merge_request",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "84b04a1f-666a-45fe-9dc8-18f5cabbd40d",
+                    "leftValue": "={{ $json.action_type }}",
+                    "rightValue": "run_pipeline",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "3691d9eb-d482-4b6f-9805-907b0c36d012",
+                    "leftValue": "={{ $json.action_type }}",
+                    "rightValue": "generate_error_report",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "fallbackOutput": "none"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -2040,
+        -480
+      ],
+      "id": "0d10162f-b730-4bb1-8dc8-1e6532bb7030",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/{{ $json.owner }}/{{ $json.repo }}/branches/{{ $json[\"targetBranch\"] }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n\"Accept\": \"application/vnd.github.v3+json\",     \"User-Agent\": \"n8n-devops-agent\"\n}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "branchName",
+              "value": "={{ $json.parsed_data.target_branch }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        100,
+        -1280
+      ],
+      "id": "81505727-fc32-4990-81e6-a2d39ab39191",
+      "name": "Check target branch",
+      "credentials": {
+        "githubApi": {
+          "id": "NqgFAf3wRQoY1UEe",
+          "name": "GitHub account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/{{ $json.owner }}/{{ $json.repo }}/compare/{{$json.targetBranch}}...{{$json.sourceBranch}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n\"Accept\": \"application/vnd.github.v3+json\",     \"User-Agent\": \"n8n-devops-agent\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        100,
+        -1080
+      ],
+      "id": "6433a4b6-a7a6-4e19-8a9b-f9e50caa1d0f",
+      "name": "Compare branch",
+      "credentials": {
+        "githubApi": {
+          "id": "NqgFAf3wRQoY1UEe",
+          "name": "GitHub account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "13639d65-7732-4891-97b3-877a980c4b59",
+              "leftValue": "={{ $json.validation.canCreatePR.toString() }}",
+              "rightValue": "=true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1220,
+        -1220
+      ],
+      "id": "5b21aca5-77a0-4f5e-86cd-209843fd3d94",
+      "name": "check if can create pull request",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sourceData = $items(\"Check source branch\")[0].json;\nconst targetData = $items(\"Check target branch\")[0].json;\nconst compareData = $items(\"Compare branch\")[0].json;\n\n// Extraire les informations du repository depuis les URLs des commits ou des données existantes\nfunction extractRepoInfo(data) {\n  // Essayer d'extraire depuis les URLs des commits\n  if (data.commits && data.commits[0]?.url) {\n    const urlMatch = data.commits[0].url.match(/https:\\/\\/api\\.github\\.com\\/repos\\/([^\\/]+)\\/([^\\/]+)\\//);\n    if (urlMatch) {\n      return {\n        owner: urlMatch[1],\n        name: urlMatch[2],\n        full_name: `${urlMatch[1]}/${urlMatch[2]}`,\n        html_url: `https://github.com/${urlMatch[1]}/${urlMatch[2]}`,\n        api_url: `https://api.github.com/repos/${urlMatch[1]}/${urlMatch[2]}`\n      };\n    }\n  }\n  \n  // Essayer d'extraire depuis tree URL\n  if (data.commit?.tree?.url) {\n    const urlMatch = data.commit.tree.url.match(/https:\\/\\/api\\.github\\.com\\/repos\\/([^\\/]+)\\/([^\\/]+)\\//);\n    if (urlMatch) {\n      return {\n        owner: urlMatch[1],\n        name: urlMatch[2],\n        full_name: `${urlMatch[1]}/${urlMatch[2]}`,\n        html_url: `https://github.com/${urlMatch[1]}/${urlMatch[2]}`,\n        api_url: `https://api.github.com/repos/${urlMatch[1]}/${urlMatch[2]}`\n      };\n    }\n  }\n  \n  // Fallback vers les données existantes si disponibles\n  if (data.repository) {\n    return data.repository;\n  }\n  \n  return {};\n}\n\n// Essayer d'extraire les infos du repo depuis différentes sources\nlet repoInfo = extractRepoInfo(compareData) || \n               extractRepoInfo(sourceData) || \n               extractRepoInfo(targetData) ||\n               $json.repository || \n               {};\n\nconst results = {\n  repository: repoInfo, // Informations du repository ajoutées ici\n  sourceBranch: { \n    name: sourceData.name,\n    exists: !!sourceData.commit,\n    sha: sourceData.commit?.sha || null,\n    error: sourceData.message || null\n  },\n  targetBranch: { \n    name: targetData.name,\n    exists: !!targetData.commit,\n    sha: targetData.commit?.sha || null,\n    error: targetData.message || null\n  },\n  comparison: {\n    ahead_by: compareData.ahead_by || 0,\n    behind_by: compareData.behind_by || 0,\n    status: compareData.status || null,\n    commits: compareData.commits || [],\n    error: compareData.message || null\n  },\n  validation: { canCreatePR: false, reasons: [] },\n  originalData: {\n    repository: $json.repository,\n    sourceBranch: sourceData.name,\n    targetBranch: targetData.name,\n    originalMessage: $json.originalMessage,\n    intention: $json.intention\n  }\n};\n\n// Validation logique\nif (!results.sourceBranch.exists) {\n  results.validation.reasons.push(`Source branch '${results.sourceBranch.name}' not found`);\n}\nif (!results.targetBranch.exists) {\n  results.validation.reasons.push(`Target branch '${results.targetBranch.name}' not found`);\n}\nif (results.comparison.ahead_by === 0) {\n  results.validation.reasons.push(\"No commits ahead - possible identical branches\");\n}\n\nresults.validation.canCreatePR = \n  results.validation.reasons.length === 0 &&\n  results.sourceBranch.exists &&\n  results.targetBranch.exists &&\n  results.comparison.ahead_by > 0;\n\n// 🔥 IMPORTANT : on retourne un seul item\nreturn [{ json: results }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        -1220
+      ],
+      "id": "2bccecde-1ce1-4d89-8b47-26bf47ae5b1c",
+      "name": "Verify Branches",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.github.com/repos/{{ $json.repository.owner }}/{{ $json.repository.name }}/pulls",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github.v3+json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.title }}\",\n  \"body\": \"{{ $json.description }}\",\n  \"head\": \"{{ $json.sourceBranch.name }}\",\n  \"base\": \"{{ $json.targetBranch.name }}\",\n  \"draft\": false\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2100,
+        -1360
+      ],
+      "id": "f6be28a0-dca1-4fcd-99ff-9049a935ca94",
+      "name": "create pull request",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "b5wVjONyth309I5E",
+          "name": "Bearer Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupérer les données d'entrée\nconst allItems = $input.all();\n\nif (!allItems || allItems.length === 0) {\n  throw new Error(\"Aucune donnée d'entrée trouvée\");\n}\n\nconst firstItem = allItems[0].json;\n\n// Debug : afficher la structure des données reçues\nconsole.log(\"Structure des données reçues:\", JSON.stringify(firstItem, null, 2));\n\n// Extraire les données depuis la structure reçue\nconst intention = firstItem.action_type || firstItem.parsed_data?.intention || \"\";\nconst sourceBranch = firstItem.source_branch || firstItem.parsed_data?.source_branch || \"\";\nconst targetBranch = firstItem.target_branch || firstItem.parsed_data?.target_branch || \"main\";\nconst originalOutput = firstItem.output || \"\";\n\n// Validation des branches\nif (!sourceBranch) {\n  throw new Error(\"Branche source non trouvée dans les données d'entrée\");\n}\n\n// Extraction owner/repo depuis l’URL\nlet owner = \"\";\nlet repo = \"\";\nif (firstItem.parsed_data?.repo_url) {\n  const repoUrl = firstItem.parsed_data.repo_url;\n  try {\n    const parts = repoUrl.split(\"github.com/\")[1].replace(\".git\", \"\").split(\"/\");\n    owner = parts[0];\n    repo = parts[1];\n  } catch (err) {\n    throw new Error(\"Impossible d'extraire owner/repo depuis l'URL: \" + repoUrl);\n  }\n}\n\nreturn [{\n  json: {\n    sourceBranch,\n    targetBranch,\n    githubToken: \"{{ $env.GITHUB_TOKEN }}\",\n    intention,\n    originalOutput,\n    owner,\n    repo,\n    parsed_data: firstItem.parsed_data,\n    debug: {\n      inputStructure: Object.keys(firstItem),\n      sourceBranchFound: !!sourceBranch,\n      targetBranchFound: !!targetBranch,\n      intentionFound: !!intention,\n      repoUrl: firstItem.parsed_data?.repo_url || null,\n      ownerExtracted: owner,\n      repoExtracted: repo\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -380,
+        -1220
+      ],
+      "id": "31dbd92e-36ea-486e-8d48-692432eb29ab",
+      "name": "Extract Branches",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/{{ $json.owner }}/{{ $json.repo }}/branches/{{ $json[\"sourceBranch\"] }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n\"Accept\": \"application/vnd.github.v3+json\",     \"User-Agent\": \"n8n-devops-agent\"\n}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "branchName",
+              "value": "={{ $json.parsed_data.source_branch }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        100,
+        -1460
+      ],
+      "id": "d56f31c1-3154-48c6-83d1-ff35e185b932",
+      "name": "Check source branch",
+      "credentials": {
+        "githubApi": {
+          "id": "NqgFAf3wRQoY1UEe",
+          "name": "GitHub account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        720,
+        -1260
+      ],
+      "id": "0d559efb-fc2b-46bc-bdb5-ca83a246440e",
+      "name": "Merge",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  ...$json,\n  title: `PR from ${$json.sourceBranch.name} to ${$json.targetBranch.name}`,\n  description: $json.description || 'Auto generated PR'\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        -1300
+      ],
+      "id": "f6fe343d-800c-476c-8727-583dd46e0816",
+      "name": "title",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "http://38.242.202.195:8080/crumbIssuer/api/json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -420,
+        440
+      ],
+      "id": "0ef36b0f-57ce-4250-bbaa-9b1ea519578c",
+      "name": "get crumb",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "2Z2IZp3hPDf31X44",
+          "name": "token-lancement-pipeline-jenkins"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// On reçoit un tableau de builds en entrée (ton exemple plus haut)\nconst builds = $input.all();  // récupère tous les items en entrée\n\n// On transforme chaque item en un nouvel objet enrichi\nreturn builds.map(item => {\n  const build = item.json;\n\n  // Conversion du timestamp en date lisible\n  let readableTimestamp = null;\n  if (build.timestamp) {\n    const date = new Date(build.timestamp);\n    readableTimestamp = date.toISOString().replace('T', ' ').split('.')[0];\n  }\n\n  return {\n    json: {\n      number: build.number,\n      url: build.url,\n      duration: build.duration,\n      displayName: build.fullDisplayName,\n      result: build.result,\n      timestamp: build.timestamp,\n      readableTimestamp,\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        1680
+      ],
+      "id": "1c2ae219-a7fc-4b5c-a422-633c855de2f5",
+      "name": "informations pipeline",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.headers.location }}api/json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={\n  \"Accept\": \"application/json\",\n  \"Jenkins-Crumb\": \"{{ $('Combine information').item.json.crumb }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1220,
+        280
+      ],
+      "id": "0ede6421-43bd-44d5-af84-c535893f6fbb",
+      "name": "Check Queue",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "2Z2IZp3hPDf31X44",
+          "name": "token-lancement-pipeline-jenkins"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Check Queue').item.json.executable.url }}api/json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={\n  \"Accept\": \"application/json\",\n  \"Jenkins-Crumb\": \"{{ $('Combine information').item.json.crumb }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1600,
+        260
+      ],
+      "id": "4b819629-4e38-461a-a90e-f0e4a77e02a3",
+      "name": "Check Build Status",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "2Z2IZp3hPDf31X44",
+          "name": "token-lancement-pipeline-jenkins"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2400,
+        -100
+      ],
+      "id": "3c694e3e-ea8a-47de-a122-721b76116d8f",
+      "name": "Wait Build",
+      "webhookId": "80658b39-5e2c-4fba-9556-e3599e5fa107"
+    },
+    {
+      "parameters": {
+        "jsCode": "let buildItem = $input.item.json;\nlet logsItem = '';\n\nif (buildItem.logs) {\n    if (typeof buildItem.logs === 'string') {\n        logsItem = buildItem.logs;\n    } else if (buildItem.logs.data) {\n        logsItem = buildItem.logs.data;\n    }\n}\n\n// Nettoyer les séquences ANSI\nlogsItem = logsItem.replace(/\\u001b\\[[0-9;]*m/g, '');\n\n// Infos build\nconst result = buildItem?.result || 'UNKNOWN';\nconst buildNumber = buildItem?.number || 'N/A';\nlet pipelineName = buildItem?.fullDisplayName || buildItem?.displayName || 'Pipeline';\nconst buildUrl = buildItem?.url || '#';\nconst duration = Math.round((buildItem?.duration || 0) / 1000 / 60 * 10) / 10;\n\nif (pipelineName.includes(`#${buildNumber}`)) {\n    pipelineName = pipelineName.replace(`#${buildNumber}`, '').trim();\n}\n\n// Résumé erreur\nlet errorSummary = 'Aucune erreur détectée';\nif (logsItem && result === 'FAILURE') {\n    const lines = logsItem.split('\\n');\n\n    // Chercher d'abord les lignes ERROR ou BUILD FAILURE\n    const errorLine = lines.find(line =>\n        line.startsWith('ERROR:') || line.includes('BUILD FAILURE') || line.toLowerCase().includes('fatal')\n    );\n\n    if (errorLine) {\n        errorSummary = errorLine.trim();\n    } else {\n        // Sinon chercher la première ligne contenant error/fatal/failure\n        const fallbackLine = lines.find(line =>\n            line.toLowerCase().includes('error') ||\n            line.toLowerCase().includes('fatal') ||\n            line.toLowerCase().includes('failure')\n        );\n        if (fallbackLine) errorSummary = fallbackLine.trim();\n    }\n}\n\n// Construire le message\nlet status, emoji, message;\n\nswitch(result) {\n    case 'FAILURE':\n        status='failure'; emoji='❌';\n        message = `${pipelineName} #${buildNumber} a échoué après ${duration} minutes.\\nErreur: ${errorSummary}\\nLien: ${buildUrl}`;\n        break;\n    case 'SUCCESS':\n        status='success'; emoji='✅';\n        message = `${pipelineName} #${buildNumber} terminé avec succès en ${duration} minutes.\\nLien: ${buildUrl}`;\n        break;\n    default:\n        status='unknown'; emoji='❓';\n        message = `${pipelineName} #${buildNumber} terminé avec statut: ${result}.\\nLien: ${buildUrl}`;\n}\n\nreturn [{\n    json: { message, status, emoji, buildNumber, buildUrl, pipelineName, duration, errorSummary }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2980,
+        280
+      ],
+      "id": "6180df8d-2387-4bd6-a1b7-e9d7fb9e53b0",
+      "name": "Format Final Result"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "77b76811-cc13-498f-af80-c9e30acb1339",
+              "name": "intention",
+              "value": "={{ $json.debug.original_data.intention }}",
+              "type": "string"
+            },
+            {
+              "id": "bb31019d-9db9-4899-b9aa-e91eda2e7231",
+              "name": "branch_name",
+              "value": "={{ $json.debug.original_data.branch_name }}",
+              "type": "string"
+            },
+            {
+              "id": "3cee49db-b0dc-4ee3-a49c-c8e432e33965",
+              "name": "task_id",
+              "value": "={{ $json.task_id }}",
+              "type": "string"
+            },
+            {
+              "id": "f98ca002-5b68-45cf-a6f4-acec134c7f16",
+              "name": "description",
+              "value": "={{ $json.description }}",
+              "type": "string"
+            },
+            {
+              "id": "68e5a358-55ee-4a2f-9c91-d208768cf728",
+              "name": "repo_path",
+              "value": "={{ $json.repo_path }}",
+              "type": "string"
+            },
+            {
+              "id": "f843c61e-1f48-4695-91da-308116467342",
+              "name": "main_branch",
+              "value": "={{ $json.main_branch }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        320,
+        -2300
+      ],
+      "id": "eb4c3a40-f3c9-491a-a1d4-98f2ec9e7112",
+      "name": "Edit Fields",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $node['Extract Branches'].json.parsed_data.mail }}",
+        "subject": "Validation de pull request",
+        "emailType": "text",
+        "message": "=Bonjour,  Une nouvelle Pull Request a été créée dans le repository  {{ $('title').item.json.repository.owner }}/{{ $('title').item.json.repository.name }}:   \n- Branche source : {{$json.sourceBranch}} \n- Branche cible : {{$json.targetBranch}} \n- Lien vers la PR : {{$json.prUrl}}  \nMerci de la valider et de la merger manuellement.\n\nCordialement, \n\nAgent DevOps.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2560,
+        -1360
+      ],
+      "id": "13a1b778-0763-4d87-92dd-4bb8000081c3",
+      "name": "Gmail",
+      "webhookId": "5a5d4396-4aec-4284-8add-92648b29cc7d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "fGO857x91Fhcq3Hq",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupérer l'item du noeud précédent\nconst item = $input.item.json;\n\n// Retourner un item simplifié avec owner et repo\nreturn [{\n  json: {\n    owner: item.owner,\n    repo: item.repo,\n    // Utiliser uniquement le nom de la branche\n    sourceBranch: item.sourceBranch?.name || item.sourceBranch,\n    targetBranch: item.targetBranch?.name || item.targetBranch,\n    githubToken: item.githubToken,\n    parsed_data: item.parsed_data\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        120,
+        -860
+      ],
+      "id": "c81c02a2-5409-4c3a-894a-a2cead6fa9ea",
+      "name": "Extraction owner et repo",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extraire les informations de la PR créée\nconst prData = $json;\nconst verificationData = $node[\"Verify Branches\"].json;\n\nreturn {\n  // Données de la PR\n  prNumber: prData.number,\n  prId: prData.id,\n  prUrl: prData.html_url,\n  prState: prData.state,\n  \n  // Données originales pour le merge\n  repository: verificationData.originalData.repository,\n  githubToken: verificationData.originalData.githubToken,\n  sourceBranch: verificationData.originalData.sourceBranch,\n  targetBranch: verificationData.originalData.targetBranch,\n  \n  // Informations utiles\n  title: prData.title,\n  mergeable: prData.mergeable,\n  mergeable_state: prData.mergeable_state,\n  \n  // Message original\n  originalMessage: verificationData.originalData.originalMessage\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        -1360
+      ],
+      "id": "bd368e34-6251-47be-9150-cbd47ab722f0",
+      "name": "Extract MR number",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupérer tous les items du noeud Verify Branches\nconst allItems = $items(\"Verify Branches\");\nif (!allItems || allItems.length === 0) {\n  throw new Error(\"Aucun item trouvé depuis Verify Branches\");\n}\n\nconst mergedData = allItems[0].json;\n\nconst sourceBranch = mergedData.sourceBranch?.name || \"non trouvé\";\nconst targetBranch = mergedData.targetBranch?.name || \"non trouvé\";\nconst compareData = mergedData.comparison || { status: \"unknown\", ahead_by: 0, behind_by: 0 };\n\nlet statusMessage = '';\n\n// Message sur le statut réel\nswitch(compareData.status) {\n  case 'identical':\n    statusMessage = `✅ Les branches sont identiques.`;\n    break;\n  case 'behind':\n    statusMessage = `⚠️ La branche ${sourceBranch} est **behind** ${targetBranch} de ${compareData.behind_by} commits.`;\n    break;\n  case 'ahead':\n    statusMessage = `⚠️ La branche ${sourceBranch} est **ahead** ${targetBranch} de ${compareData.ahead_by} commits.`;\n    break;\n  case 'diverged':\n    statusMessage = `⚠️ La branche ${sourceBranch} a divergé de ${targetBranch} (ahead: ${compareData.ahead_by}, behind: ${compareData.behind_by}).`;\n    break;\n  default:\n    statusMessage = `ℹ️ Statut inconnu pour la comparaison des branches.`;\n}\n\n// Si la PR ne peut pas être créée, ajouter les raisons\nif (!mergedData.validation.canCreatePR) {\n  const reasons = mergedData.validation.reasons || [\"Raisons inconnues\"];\n  statusMessage = `❌ Impossible de créer la PR:\\n${reasons.join('\\n')}\\n\\nℹ️ Statut actuel: ${statusMessage}`;\n}\n\nreturn {\n  success: mergedData.validation.canCreatePR,\n  message: statusMessage,\n  status: compareData.status,\n  ahead_by: compareData.ahead_by,\n  behind_by: compareData.behind_by,\n  details: mergedData.validation,\n  originalMessage: mergedData.originalData.originalMessage\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        -880
+      ],
+      "id": "de1bd9a4-5be5-487c-95a4-1b818e102e11",
+      "name": "Error",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Check Build Status').item.json.url }}consoleText",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n\"Accept\": \"text/plain\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        240
+      ],
+      "id": "e87ce60d-8030-4a33-93d0-ebfac6deee18",
+      "name": "Get logs",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "2Z2IZp3hPDf31X44",
+          "name": "token-lancement-pipeline-jenkins"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.jenkins_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify($json.parameters) }}\n",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={\n  \"Content-Type\": \"application/x-www-form-urlencoded\",\n   \"Jenkins-Crumb\": \"{{ $json.crumb }}\"\n}",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        540,
+        300
+      ],
+      "id": "d59b8bca-99f3-481e-af41-e782869688b1",
+      "name": "Lance pipleline",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "2Z2IZp3hPDf31X44",
+          "name": "token-lancement-pipeline-jenkins"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Version corrigée - gestion des cas où items peuvent être undefined\nconst items = $input.all();\n\n// Sécurisation des recherches\nconst pipelineData = items.find(item => item?.json?.jenkins_url) || { json: {} };\nconst crumbData = items.find(item => item?.json?.crumb) || { json: {} };\n\n// Vérification que les données essentielles sont présentes\nif (!pipelineData.json.jenkins_url) {\n  throw new Error(\"Configuration pipeline manquante\");\n}\n\nif (!crumbData.json.crumb) {\n  throw new Error(\"CSRF crumb manquant - problème d'authentification Jenkins\");\n}\n\nreturn [{\n  json: {\n    ...pipelineData.json,\n    crumb: crumbData.json.crumb,\n    crumbRequestField: crumbData.json.crumbRequestField || 'Jenkins-Crumb'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        280
+      ],
+      "id": "c1ff0674-41bd-4d29-b899-7ef23287dbd0",
+      "name": "Combine information"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6b3a667e-0cc2-4d1a-9bcb-af3719be441a",
+              "leftValue": "={{ $json.building }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2040,
+        240
+      ],
+      "id": "7ff8546a-1711-4d57-9a17-9027ae2965df",
+      "name": "Building done?"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        900,
+        280
+      ],
+      "id": "b921b04f-492d-4097-91f0-d225c8fc5d14",
+      "name": "Wait execution",
+      "webhookId": "dae6272d-2bc6-4d92-88ef-031c9b81a2b9"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\n// On prend le JSON déjà parsé si dispo\nconst aiResponse = input.parsed_data || {};\n\n// Construire l'objet Jenkins Config\nlet jenkinsConfig = {};\n\n// Depuis parsed_data\nif (aiResponse.job_name) jenkinsConfig.job_name = aiResponse.job_name;\nif (aiResponse.time_period) jenkinsConfig.time_period = aiResponse.time_period;\nif (aiResponse.error_types) jenkinsConfig.error_types = aiResponse.error_types;\nif (aiResponse.confidence !== undefined) jenkinsConfig.confidence = aiResponse.confidence;\n\n// Depuis error_context\nif (input.error_context && input.error_context.error_type) {\n  jenkinsConfig.error_type = input.error_context.error_type;\n}\n\n// Gestion du time range uniquement si time_period est fourni\nif (aiResponse.time_period) {\n  const now = Date.now();\n  const periodMap = {\n    \"24h\": 24 * 60 * 60 * 1000,\n    \"7d\": 7 * 24 * 60 * 60 * 1000,\n    \"30d\": 30 * 24 * 60 * 60 * 1000\n  };\n\n  const timeRange = periodMap[aiResponse.time_period];\n  if (timeRange) {\n    jenkinsConfig.start_timestamp = now - timeRange;\n    jenkinsConfig.end_timestamp = now;\n  }\n}\n\nreturn [{ json: jenkinsConfig }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        1400
+      ],
+      "id": "04882eb2-0b8d-4a1d-987b-e849c2000ed5",
+      "name": "preparation parameters",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=http://38.242.202.195:8080/job/{{ $json.job_name }}/api/json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "{\n  \"tree\": \"builds[number,result,timestamp,url,duration,fullDisplayName]{0,100}\"\n  }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        380,
+        1440
+      ],
+      "id": "c95ac9f6-7453-4f23-a634-407998ace636",
+      "name": "Get builds",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "2Z2IZp3hPDf31X44",
+          "name": "token-lancement-pipeline-jenkins"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// On récupère la liste des builds depuis l'input\nconst builds = items[0].json.builds || [];\n\n// On filtre uniquement ceux qui ont échoué\nconst failedBuilds = builds.filter(b => b.result === \"FAILURE\");\n\n// On retourne le tableau filtré\nreturn failedBuilds.map(b => ({ json: b }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        1440
+      ],
+      "id": "c2a4ef92-37a0-46a7-b8a6-35b7c710bf81",
+      "name": "Filter failed builds",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=http://38.242.202.195:8080/job/{{ $('preparation parameters').item.json.job_name }}/{{ $json.number }}/consoleText",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n    \"Accept\": \"text/plain\"\n  }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        1440
+      ],
+      "id": "1eb5ec77-a2de-4476-b636-a46182ed2d37",
+      "name": "Logs builds",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "2Z2IZp3hPDf31X44",
+          "name": "token-lancement-pipeline-jenkins"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// On récupère la liste des builds échoués\nconst builds = $('Filter failed builds').all();\n\nreturn items.map((item, index) => {\n  // Récupérer l’URL du build correspondant\n  const url = builds[index]?.json.url || \"\";\n\n  // Extraire le numéro du build depuis l'URL\n  const match = url.match(/\\/(\\d+)\\/?$/);\n  const number = match ? parseInt(match[1]) : null;\n\n  return {\n    json: {\n      number,\n      log: item.json.data,\n      url\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        1420
+      ],
+      "id": "663c24ae-2ff8-42a4-b69e-fbcf5010a402",
+      "name": "Build number",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// On prend toutes les entrées en entrée (chaque build)\nconst builds = $input.all();\n\nreturn builds.map(item => {\n  const build = item.json;\n  const consoleLog = build.log || ''; // Récupère le log directement\n\n  // Extraction intelligente des erreurs principales\n  const errorLines = consoleLog\n    .split('\\n')\n    .filter(line => {\n      const l = line.trim().toLowerCase();\n      return (\n        l.includes('error') || \n        l.includes('failed') || \n        l.includes('exception') ||\n        l.includes('build failed') ||\n        l.includes('compilation error') ||\n        l.includes('unexpected token')\n      ) &&\n      !l.includes('at org.') &&\n      !l.includes('at hudson.') &&\n      !l.includes('at groovy.') &&\n      line.trim().length > 10;\n    })\n    .slice(0, 3) // Max 3 erreurs principales\n    .map(line => line.trim());\n\n  const mainError = errorLines.length > 0 ? \n    errorLines[0].substring(0, 150) + (errorLines[0].length > 150 ? '...' : '') :\n    'Erreur non identifiée';\n\n  return {\n    json: {\n      build_number: build.number,\n      build_result: build.result || 'UNKNOWN',\n      build_url: build.url,\n      build_timestamp: build.timestamp ? \n        new Date(build.timestamp).toLocaleString('fr-FR') : \n        'Date inconnue',\n      main_error: mainError,\n      all_errors: errorLines,\n      error_count: errorLines.length,\n      log_preview: consoleLog.substring(0, 300) + '...'\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        1440
+      ],
+      "id": "02d4e654-e186-4611-bd09-4ed3bee7344e",
+      "name": "Extract error",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allBuilds = $input.all();\n\n// Récupérer le nom du job depuis le nœud de filtrage (qui contient job_name)\nconst jobName = $('preparation parameters').first().json.job_name || 'Job inconnu';\n\nlet report = {\n  job_name: jobName,\n  total_failed_builds: allBuilds.length,\n  builds_summary: allBuilds.map(build => ({\n    build_number: build.json.build_number,\n    build_result: build.json.build_result,\n    build_url: build.json.build_url,\n    build_timestamp: build.json.build_timestamp,\n    main_error: build.json.main_error,\n    all_errors: build.json.all_errors,\n    error_count: build.json.error_count\n  })),\n  generated_at: new Date().toLocaleString('fr-FR')\n};\n\nreturn [{ json: report }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2260,
+        1420
+      ],
+      "id": "de83adf2-f495-4ef6-830c-422ffa1f2ee6",
+      "name": "Final aggregation",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.item.json;\n\nlet message = `🚨 Rapport Jenkins - ${data.job_name}\\n\\n`;\nmessage += `*Date du rapport :* ${data.generated_at}\\n`;\nmessage += `*Nombre de builds échoués :* ${data.total_failed_builds}\\n\\n`;\nmessage += `*🔎 Détails des échecs :*\\n`;\n\nfor (const build of data.builds_summary) {\n  const number = build.build_number;\n  const result = build.build_result;\n  const timestamp = build.build_timestamp;\n  const url = build.build_url;\n  const errors = build.all_errors || [];\n\n  // afficher toutes les erreurs sans rien supprimer\n  const errorSummary = errors.length > 0 ? errors.join(\"\\n    - \") : \"Erreur inconnue\";\n\n  message += `- *Build #${number}* (${timestamp}) → *${result}*\\n`;\n  message += `  🔗 <${url}|Voir build>\\n`;\n  message += `  ⚠️ ${errorSummary}\\n\\n`;\n}\n\nreturn [{ json: { message } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        1420
+      ],
+      "id": "45c023ef-e64f-49b0-8a7a-6a8a6653e701",
+      "name": "Format rapport",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "fieldsToMatchString": "number",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1560,
+        1440
+      ],
+      "id": "4b3fff45-bfaf-4000-ab50-a49f592f4e6b",
+      "name": "Merge info",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupérer directement l'item du nœud \"Check Build Status\"\nconst buildItem = $('Check Build Status').first().json;\n\n// Récupérer directement l'item du nœud \"Get logs\" (texte brut)\nconst logsItem = $('Get logs').first().json || '';\n\n// Construire le résultat final combiné\nreturn [{\n  json: {\n    number: buildItem?.number ?? null,\n    result: buildItem?.result ?? 'UNKNOWN',\n    duration: buildItem?.duration ?? 0,\n    url: buildItem?.url ?? '',\n    fullDisplayName: buildItem?.fullDisplayName ?? '',\n    logs: logsItem\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2700,
+        260
+      ],
+      "id": "2e237bc7-0c4a-461d-84b8-65d0dd799e65",
+      "name": "Combine info & logs"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7a28ed7a-b6a2-4755-b2db-d0206842d1a6",
+              "leftValue": "={{ $json._links?.html ? 'exists' : '' }}",
+              "rightValue": "=exists",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        840,
+        -2300
+      ],
+      "id": "458f839a-74e7-416f-9886-bf53d5f3b116",
+      "name": "IF",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.github.com/repos/{{ $('Edit Fields').item.json.repo_path }}/git/refs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n  \"Content-Type\": \"application/json\",\n  \"Accept\": \"application/vnd.github.v3+json\",\n  \"User-Agent\": \"n8n-devops-agent\"\n}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"ref\": \"refs/heads/{{ $('Edit Fields').item.json.branch_name }}\",\n  \"sha\": \"{{ $('Get SHA').first().json.object.sha }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1580,
+        -2180
+      ],
+      "id": "5fbb5282-a3ff-4e41-99b6-f3b3cc02fca4",
+      "name": "Create branch",
+      "credentials": {
+        "githubApi": {
+          "id": "NqgFAf3wRQoY1UEe",
+          "name": "GitHub account"
+        },
+        "httpHeaderAuth": {
+          "id": "o3xkCeuG1YZ6Ovdk",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const branchData = $('Formulate message').first().json;\n\n// Préparer un tableau pour collecter les erreurs\nlet errors = [];\n\n// Vérifier que le repo_path est présent\nif (!branchData.repo_path) {\n  errors.push(\"Nom de repo manquant ou invalide\");\n}\n\n// Vérifier que branch_name est présent et valide\nif (!branchData.branch_name) {\n  errors.push(\"Nom de branche manquant\");\n} else if (!/^[a-zA-Z0-9\\-\\_\\/]+$/.test(branchData.branch_name)) {\n  errors.push(\"Nom de branche invalide : caractères autorisés a-z, A-Z, 0-9, -, _ ou /\");\n}\n\n// Vérifier la branche principale (main_branch) si nécessaire\nif (!branchData.main_branch) {\n  errors.push(\"Branche principale manquante\");\n} else if (!/^[a-zA-Z0-9\\-\\_]+$/.test(branchData.main_branch)) {\n  errors.push(\"Branche principale invalide : caractères autorisés a-z, A-Z, 0-9, -, _\");\n}\n\nlet message;\n\n// Si des erreurs existent, générer un message d’erreur\nif (errors.length > 0) {\n  message = `❌ **Impossible de créer la branche**\\n\\n` +\n            `Problèmes possibles :\\n• ${errors.join(\"\\n• \")}`;\n  return {\n    json: {\n      success: false,\n      message: message\n    }\n  };\n}\n\n// Sinon, construire le message de succès\nconst githubUrl = `https://github.com/${branchData.repo_path}/tree/${branchData.branch_name}`;\nmessage = `✅ **Branche créée avec succès !**\n\n📝 **Tâche :** ${branchData.task_id || '-'}\n🌿 **Branche :** \\`${branchData.branch_name}\\`\n📋 **Description :** ${branchData.description || '-'}\n\n🔗 **LIENS**\n• [GitHub](${githubUrl})\n⏰ Créée le: ${new Date().toLocaleString('fr-FR')}\n\nLa branche est maintenant disponible dans le repository GitHub.`;\n\nreturn { json: { success: true, message: message } };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        -2180
+      ],
+      "id": "8ac0a1a9-67d6-40ee-abe7-5f839ce5fb53",
+      "name": "Message branch created",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const branchData = $('Edit Fields').first().json;\n\nconst githubUrl = `https://github.com/${branchData.repo_path}/tree/${branchData.branch_name}`;\n\nconst message = `⚠️ **La branche existe déjà !**\n\n🌿 **Branche :** \\`${branchData.branch_name}\\`\n🔗 [Voir sur GitHub](${githubUrl})\n🕒 Vérifiée le : ${new Date().toLocaleString('fr-FR')}\n\nLa création d'une nouvelle branche a été annulée car elle existe déjà dans le repository.`;\n\nreturn { json: { message: message } };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        -2480
+      ],
+      "id": "508a2db8-574c-48a8-9ec8-64d93f4b0a6c",
+      "name": "Message branch exist",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupère la sortie du nœud précédent (mssg slack OU message)\nconst input = $input.first().json;\n\n// Normaliser le champ message\nlet message = input.message || \"⚠️ Aucun message généré\";\n\n// Retourner un objet unique\nreturn {\n  json: {\n    message\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2620,
+        -2300
+      ],
+      "id": "d5218d9a-1455-43bb-b1b9-2a9c18913617",
+      "name": "Final message",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupérer la réponse de l'agent IA\nconst agentOutput = $input.first().json.output;\nconsole.log(\"=== AGENT OUTPUT ===\");\nconsole.log(agentOutput);\n\n// Extraire le JSON du bloc markdown\nconst jsonMatch = agentOutput.match(/```json\\n([\\s\\S]*?)\\n```/);\nif (jsonMatch) {\n  try {\n    const parsedData = JSON.parse(jsonMatch[1]);\n    console.log(\"=== PARSED DATA ===\");\n    console.log(JSON.stringify(parsedData, null, 2));\n    \n    // Extraire le nom de branche\n    let branchName = parsedData.nom_branche || \n                     parsedData.branch_name || \n                     parsedData.branche || \n                     parsedData.name;\n\n    if (branchName) {\n      branchName = branchName.replace(/[^a-zA-Z0-9\\-\\_\\/]/g, '-');\n    }\n\n    // Extraire le repo URL dynamiquement (sans valeur par défaut)\n    let repoUrl = parsedData.repo_url || parsedData.repo;\n    let repoPath = repoUrl ? repoUrl.replace('https://github.com/', '').replace(/\\.git$/, '') : null;\n\n    // Extraire la branche principale depuis le message\n    let mainBranch = parsedData.main_branch || parsedData.default_branch || parsedData.branche_principale || 'main';\n\n    // Extraire task_id et description si présents\n    let taskId = parsedData.task_id || parsedData.ticket || parsedData.tache || null;\n    let description = parsedData.description || null;\n\n    const result = {\n      intention: parsedData.intention || 'create_branch',\n      branch_name: branchName,\n      task_id: taskId,\n      description: description,\n      repo_url: repoUrl,\n      repo_path: repoPath,\n      main_branch: mainBranch,\n      success: true,\n      debug: {\n        original_data: parsedData,\n        agent_output: agentOutput\n      }\n    };\n    \n    console.log(\"=== RESULT FINAL ===\");\n    console.log(JSON.stringify(result, null, 2));\n    \n    return { json: result };\n    \n  } catch (error) {\n    const errorMessage = error instanceof Error ? error.message : String(error);\n    return {\n      json: {\n        success: false,\n        error: errorMessage,\n        raw_output: agentOutput\n      }\n    };\n  }\n} else {\n  return {\n    json: {\n      success: false,\n      error: \"Aucun bloc JSON trouvé dans la réponse de l'agent IA\",\n      raw_output: agentOutput\n    }\n  };\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        -2300
+      ],
+      "id": "a60229bf-d22f-4c38-b63e-2a0672ccddbe",
+      "name": "Formulate message",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/{{ $('Edit Fields').item.json.repo_path }}/git/ref/heads/{{ $('Edit Fields').item.json.main_branch }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n  \"Accept\": \"application/vnd.github.v3+json\",\n  \"User-Agent\": \"n8n-devops-agent\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1220,
+        -2180
+      ],
+      "id": "c80fa349-b73c-4603-9c7b-741fd6284e04",
+      "name": "Get SHA",
+      "credentials": {
+        "githubApi": {
+          "id": "NqgFAf3wRQoY1UEe",
+          "name": "GitHub account"
+        },
+        "httpHeaderAuth": {
+          "id": "o3xkCeuG1YZ6Ovdk",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/{{ $json.repo_path }}/branches/{{ $json.branch_name }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n  \"Accept\": \"application/vnd.github.v3+json\",\n  \"User-Agent\": \"n8n-devops-agent\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        560,
+        -2300
+      ],
+      "id": "bdd75df4-a1c7-4170-9def-560ef3121d24",
+      "name": "Verify branch existence",
+      "credentials": {
+        "githubApi": {
+          "id": "NqgFAf3wRQoY1UEe",
+          "name": "GitHub account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allInputs = $input.all();\n\nconst results = allInputs.map(input => {\n  const data = input.json;\n\n  // Cas 1 : vient du Handle Error\n  if (data.success === false) {\n    return {\n      type: 'error',\n      success: false,\n      message: data.message,\n      details: data.details || {},\n      timestamp: new Date().toISOString(),\n    };\n  }\n\n  // Cas 2 : vient du Gmail\nif (data.id && data.threadId) { \n  return {\n    type: 'email_notification',\n    success: true,\n    message: `✅ Merge request créée et notification envoyée au superviseur`,\n    details: data,\n    timestamp: new Date().toISOString(),\n  };\n}\n  \n  // Cas par défaut (sécurité)\n  return {\n    type: 'unknown',\n    success: false,\n    message: '⚠️ Données inattendues reçues dans Merge all responses',\n    details: data,\n    timestamp: new Date().toISOString(),\n  };\n});\n\nconst summary = {\n  totalResults: results.length,\n  successful: results.filter(r => r.success).length,\n  failed: results.filter(r => !r.success).length,\n  results: results,\n};\n\nconst finalMessage = results.map(r => r.message).join('\\n');\nconst finalStatus = summary.failed > 0 ? 'failed' : 'complete_success';\n\nreturn {\n  status: finalStatus,\n  message: finalMessage,\n  summary,\n  timestamp: new Date().toISOString(),\n  notificationData: {\n    title: finalStatus === 'complete_success' ? '🎉 Notifications traitées' : '❌ Problème détecté',\n    body: finalMessage,\n    priority: finalStatus === 'failed' ? 'high' : 'normal',\n    tags: [finalStatus, 'devops', 'notification'],\n  },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2920,
+        -1200
+      ],
+      "id": "febbd43c-be80-4895-b44b-8a55a492e90b",
+      "name": "Final Message",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "user_n8n_commands",
+          "mode": "list",
+          "cachedResultName": "user_n8n_commands"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "channel_id",
+              "displayName": "channel_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "command_text",
+              "displayName": "command_text",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "workflow_name",
+              "displayName": "workflow_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -3040,
+        -40
+      ],
+      "id": "ff1ca8d0-82fe-48fd-a0bf-f6bffbbe031d",
+      "name": "Postgres",
+      "credentials": {
+        "postgres": {
+          "id": "0xLeE59i0agD8G5M",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = items[0].json;\n\n// Extraire le texte réel sans la mention du bot\nlet commandText = input.text.replace(/<@[A-Z0-9]+>\\s*/, '').trim();\n\n// Déterminer le sous-workflow déclenché selon la commande\nlet workflowName = \"Inconnu\";\nconst cmd = commandText.toLowerCase();\n\nif (cmd.includes(\"branche\")) {\n    workflowName = \"Sous-workflow Création Branche Git\";\n} else if (cmd.includes(\"merge\")) {\n    workflowName = \"Sous-workflow Lancer Merge Request\";\n} else if (cmd.includes(\"pipeline_type\")) {\n    workflowName = \"Sous-workflow Lancer Pipeline\";\n} else if (cmd.includes(\"rapport d'erreur\")) {\n    workflowName = \"Sous-workflow Générer Rapport d'Erreur\";\n}\n\nreturn [\n  {\n    json: {\n      user_id: input.user,  \n      channel_id: input.channel,\n      command_text: commandText,               \n      workflow_name: workflowName,   \n      timestamp: new Date().toISOString() \n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3240,
+        -120
+      ],
+      "id": "c1bcbaf8-4616-4431-9e7e-c5fa6690ceb3",
+      "name": "command info"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupération de l'entrée\nconst items = $input.all();\nconst input = items[0].json;\n\n// Helper pour normaliser les accents et minuscules\nfunction normalize(str) {\n    return str\n        .toLowerCase()\n        .normalize('NFD')\n        .replace(/[\\u0300-\\u036f]/g, ''); // supprime accents\n}\n\n// Paramètres de base\nconst baseParams = {\n    repository: input.base_params?.repository || input.parsed_data?.repo_url || 'default/repo',\n    branch: input.base_params?.branch || input.parsed_data?.branch_name || 'main',\n    environment: input.base_params?.environment || input.parsed_data?.environment || 'dev',\n    triggered_by: input.user_id || input.user?.id || 'unknown',\n    timestamp: new Date().toISOString(),\n};\n\n// Récupération du message utilisateur\nconst rawMessage = input.message || input.parsed_data?.description || input.output || '';\nconst userMessage = normalize(rawMessage);\n\n// Dictionnaire de mots-clés étendu (normalisé)\nconst pipelineKeywords = {\n    test: ['test', 'tests', 'teste', 'tested', 'unittest', 'mockito', 'junit', 'coverage', 'qa'].map(normalize),\n    build: ['build', 'builds', 'compile','compiler', 'package', 'artifact', 'maven', 'gradle', 'assembly'].map(normalize),\n    deploy: ['deploy', 'deploiement', 'déploiement', 'deployment', 'release', 'prod', 'production', 'staging', 'deploiment'].map(normalize),\n    full: ['full', 'complete', 'complet', 'all stages', 'total', 'end-to-end', 'everything'].map(normalize)\n};\n\n// Calcul du score pour chaque type\nlet detectedType = input.pipeline_type || input.parsed_data?.pipeline_type || null;\nlet maxScore = 0;\n\n// Si pipeline_type non défini, on analyse le message\nif (!detectedType) {\n    for (const [type, keywords] of Object.entries(pipelineKeywords)) {\n        const score = keywords.reduce((acc, word) => acc + (userMessage.includes(word) ? 1 : 0), 0);\n        if (score > maxScore) {\n            maxScore = score;\n            detectedType = type;\n        }\n    }\n}\n\n// Si aucun type détecté, ne rien faire\nif (!detectedType) return [];\n\n// Nom du pipeline Jenkins\nconst pipelineNameMap = {\n    test: 'test-pipeline',\n    build: 'build-pipeline',\n    deploy: 'deploy-pipeline',\n    full: 'full-pipeline'\n};\nconst jenkinsJob = pipelineNameMap[detectedType];\n\n// Construction des stages et paramètres\nlet stages = [];\nlet parameters = {\n    REPO_URL: baseParams.repository,\n    BRANCH: baseParams.branch,\n    ENVIRONMENT: baseParams.environment\n};\nlet approvalRequired = false;\n\nswitch(detectedType) {\n    case 'test':\n        stages = ['checkout', 'test', 'coverage'];\n        parameters.TEST_TYPE = 'unit';\n        break;\n    case 'build':\n        stages = ['checkout', 'compile', 'package', 'artifact-upload'];\n        break;\n    case 'deploy':\n        stages = ['artifact-download', 'deploy', 'health-check', 'rollback-preparation'];\n        approvalRequired = baseParams.environment === 'prod';\n        break;\n    case 'full':\n        stages = ['checkout', 'build', 'test', 'deploy'];\n        break;\n}\n\n\nreturn [{\n    json: {\n        jenkins_job: jenkinsJob,\n        jenkins_url: `http://38.242.202.195:8080/job/${jenkinsJob}/buildWithParameters`,\n        stages,\n        parameters,\n        pipeline_type: detectedType,\n        base_params: baseParams,\n        approval_required: approvalRequired\n    }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -760,
+        220
+      ],
+      "id": "d2d79aaf-65d9-4075-a6c1-322a29d7e6d4",
+      "name": "Pipeline type classifier",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fonction pour extraire le JSON de la réponse markdown\nfunction extractJSONFromMarkdown(text) {\n    // Retire les backticks et le mot \"json\" du début/fin\n    const cleanedText = text.replace(/```json\\n?/g, '').replace(/```/g, '').trim();\n    try {\n        return JSON.parse(cleanedText);\n    } catch (e) {\n        console.log(\"Erreur parsing JSON:\", e);\n        return null;\n    }\n}\n\n// Fonction d'extraction du nom de branche (gardée pour les cas où c'est nécessaire)\nfunction extractBranchName(text) {\n    let match = text.match(/(?:branch|branche)\\s+(\\w+[\\w-]*)/i);\n    if (match) return match[1];\n    \n    match = text.match(/[\"']([^\"']+)[\"']/);\n    if (match) return match[1];\n    \n    return \"feature/new-feature\";\n}\n\n// Fonction d'extraction de config pipeline\nfunction extractPipelineConfig(text) {\n    let config = {};\n    \n    if (text.includes(\"test\") || text.includes(\"testing\")) {\n        config.stage = \"test\";\n    } else if (text.includes(\"deploy\") || text.includes(\"déployer\")) {\n        config.stage = \"deploy\";\n    } else if (text.includes(\"build\") || text.includes(\"construire\")) {\n        config.stage = \"build\";\n    } else {\n        config.stage = \"all\";\n    }\n    \n    return config;\n}\n\n// Fonction d'extraction des branches source/target\nfunction extractSourceBranch(text) {\n    let match = text.match(/from\\s+(\\w+[\\w-]*)|depuis\\s+(\\w+[\\w-]*)/i);\n    return match ? (match[1] || match[2]) : \"develop\";\n}\n\nfunction extractTargetBranch(text) {\n    let match = text.match(/to\\s+(\\w+[\\w-]*)|vers\\s+(\\w+[\\w-]*)|into\\s+(\\w+[\\w-]*)/i);\n    return match ? (match[1] || match[2] || match[3]) : \"main\";\n}\n\n// Fonction d'extraction du contexte d'erreur\nfunction extractErrorContext(text) {\n    return {\n        error_type: text.includes(\"build\") ? \"build_error\" : \n                   text.includes(\"deploy\") ? \"deploy_error\" : \"general_error\",\n        description: text\n    };\n}\n\n// Logic principal du parsing\nfor (const item of $input.all()) {\n    let output = item.json.output || \"\";\n    \n    console.log(\"Output brut:\", output);\n    \n    // Extraire le JSON de la réponse markdown\n    const parsedJSON = extractJSONFromMarkdown(output);\n    \n    if (parsedJSON && parsedJSON.intention) {\n        // Utiliser l'intention directement du JSON parsé\n        const intention = parsedJSON.intention;\n        \n        console.log(\"Intention détectée:\", intention);\n        \n        switch (intention) {\n            case \"create_branch\":\n                item.json.action_type = \"create_branch\";\n                item.json.branch_name = parsedJSON.branch_name || extractBranchName(output);\n                break;\n                \n            case \"run_pipeline\":\n                item.json.action_type = \"run_pipeline\";\n                item.json.branch_name = parsedJSON.branch_name || \"main\";\n                item.json.pipeline_config = extractPipelineConfig(output);\n                break;\n                \n            case \"create_merge_request\":\n                item.json.action_type = \"create_merge_request\";\n                item.json.source_branch = parsedJSON.source_branch || \"develop\";\n                item.json.target_branch = parsedJSON.target_branch || \"main\";\n                break;\n                \n            case \"generate_error_report\":\n            case \"error_report\":\n            case \"error_analysis\":\n            case \"analyze_error\":\n            case \"report_pipeline_error\":\n                item.json.action_type = \"generate_error_report\";\n                item.json.error_context = {\n                    error_type: \"general_error\",\n                    description: parsedJSON.description || \"\"\n                };\n                break;\n                \n            default:\n                item.json.action_type = \"default\";\n                console.log(\"Intention non reconnue:\", intention);\n        }\n        \n        // Ajouter les données parsées pour référence\n        item.json.parsed_data = parsedJSON;\n        \n    } else {\n        // Fallback : analyser le texte brut si le parsing JSON échoue\n        console.log(\"Fallback vers analyse textuelle\");\n        const payload = output.toLowerCase();\n        \n        if (payload.includes(\"create_branch\") || payload.includes(\"nouvelle branche\") || payload.includes(\"créer branche\") || payload.includes(\"creer branche\")) {\n            item.json.action_type = \"create_branch\";\n            item.json.branch_name = extractBranchName(output);\n        } else if (payload.includes(\"run_pipeline\") || payload.includes(\"lancer pipeline\") || payload.includes(\"lance pipeline\") || payload.includes(\"pipeline\")) {\n            item.json.action_type = \"run_pipeline\";\n            item.json.pipeline_config = extractPipelineConfig(output);\n        } else if (payload.includes(\"merge_request\") || payload.includes(\"merge request\") || payload.includes(\"pull request\") || payload.includes(\"mr\") || payload.includes(\"pr\")) {\n            item.json.action_type = \"create_merge_request\";\n            item.json.source_branch = extractSourceBranch(output);\n            item.json.target_branch = extractTargetBranch(output);\n        } else if (payload.includes(\"error_report\") || payload.includes(\"error report\") || payload.includes(\"rapport erreur\") || payload.includes(\"erreur\")) {\n            item.json.action_type = \"generate_error_report\";\n            item.json.error_context = extractErrorContext(output);\n        } else {\n            item.json.action_type = \"default\";\n        }\n    }\n    \n    console.log(\"Action finale:\", item.json.action_type);\n    console.log(\"Données:\", JSON.stringify(item.json, null, 2));\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2240,
+        -460
+      ],
+      "id": "6c21b340-bf45-490d-8353-703f8fa5b09b",
+      "name": "Code parser"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C08HDJGCSMQ",
+          "mode": "list",
+          "cachedResultName": "tous-devops2025"
+        },
+        "text": "={{ $json.message }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        5700,
+        180
+      ],
+      "id": "ed830a88-59f7-4469-93fa-1c696a7e0e60",
+      "name": "Slack final",
+      "webhookId": "025f34b7-761b-4fdb-93a4-0f0b7d13040d",
+      "credentials": {
+        "slackApi": {
+          "id": "VzuU0VDsCV7F3f2Z",
+          "name": "Slack account 3"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -160,
+        280
+      ],
+      "id": "a39e25b7-c227-496e-9640-abb5a5073549",
+      "name": "Merge pipeline info"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Slack Trigger": {
+      "main": [
+        [
+          {
+            "node": "command info",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Formulate message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract Branches",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pipeline type classifier",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "preparation parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check target branch": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Compare branch": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "check if can create pull request": {
+      "main": [
+        [
+          {
+            "node": "title",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Branches": {
+      "main": [
+        [
+          {
+            "node": "check if can create pull request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create pull request": {
+      "main": [
+        [
+          {
+            "node": "Extract MR number",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Branches": {
+      "main": [
+        [
+          {
+            "node": "Check source branch",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check target branch",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Compare branch",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Extraction owner et repo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check source branch": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Verify Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "title": {
+      "main": [
+        [
+          {
+            "node": "create pull request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get crumb": {
+      "main": [
+        [
+          {
+            "node": "Merge pipeline info",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "informations pipeline": {
+      "main": [
+        [
+          {
+            "node": "Merge info",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Check Build Status": {
+      "main": [
+        [
+          {
+            "node": "Building done?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Build": {
+      "main": [
+        [
+          {
+            "node": "Check Build Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Queue": {
+      "main": [
+        [
+          {
+            "node": "Check Build Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Final Result": {
+      "main": [
+        [
+          {
+            "node": "Slack final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Verify branch existence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail": {
+      "main": [
+        [
+          {
+            "node": "Final Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraction owner et repo": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Extract MR number": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error": {
+      "main": [
+        [
+          {
+            "node": "Final Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get logs": {
+      "main": [
+        [
+          {
+            "node": "Combine info & logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lance pipleline": {
+      "main": [
+        [
+          {
+            "node": "Wait execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine information": {
+      "main": [
+        [
+          {
+            "node": "Lance pipleline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Building done?": {
+      "main": [
+        [
+          {
+            "node": "Wait Build",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait execution": {
+      "main": [
+        [
+          {
+            "node": "Check Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "preparation parameters": {
+      "main": [
+        [
+          {
+            "node": "Get builds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get builds": {
+      "main": [
+        [
+          {
+            "node": "Filter failed builds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter failed builds": {
+      "main": [
+        [
+          {
+            "node": "Logs builds",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "informations pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Logs builds": {
+      "main": [
+        [
+          {
+            "node": "Build number",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build number": {
+      "main": [
+        [
+          {
+            "node": "Merge info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract error": {
+      "main": [
+        [
+          {
+            "node": "Final aggregation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final aggregation": {
+      "main": [
+        [
+          {
+            "node": "Format rapport",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format rapport": {
+      "main": [
+        [
+          {
+            "node": "Slack final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge info": {
+      "main": [
+        [
+          {
+            "node": "Extract error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine info & logs": {
+      "main": [
+        [
+          {
+            "node": "Format Final Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF": {
+      "main": [
+        [
+          {
+            "node": "Message branch exist",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get SHA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create branch": {
+      "main": [
+        [
+          {
+            "node": "Message branch created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message branch created": {
+      "main": [
+        [
+          {
+            "node": "Final message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message branch exist": {
+      "main": [
+        [
+          {
+            "node": "Final message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final message": {
+      "main": [
+        [
+          {
+            "node": "Slack final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formulate message": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get SHA": {
+      "main": [
+        [
+          {
+            "node": "Create branch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify branch existence": {
+      "main": [
+        [
+          {
+            "node": "IF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Message": {
+      "main": [
+        [
+          {
+            "node": "Slack final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "command info": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pipeline type classifier": {
+      "main": [
+        [
+          {
+            "node": "Merge pipeline info",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "get crumb",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code parser": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack final": {
+      "main": [
+        []
+      ]
+    },
+    "Merge pipeline info": {
+      "main": [
+        [
+          {
+            "node": "Combine information",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "db2c11f8-ca19-4be2-9820-1ab774adab6c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8407fe105074815f81c04dd8b7d00d4f9a0ecc05c75e81b6e2d290e26bd1c5b6"
+  },
+  "id": "S25Aj8Lm3EXLVzeL",
+  "tags": []
+}
